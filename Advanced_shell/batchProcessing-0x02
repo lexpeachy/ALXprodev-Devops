@@ -3,6 +3,7 @@
 import os
 import time
 import subprocess
+from datetime import datetime
 
 def fetch_pokemon_data():
     # List of Pokémon in lowercase
@@ -11,28 +12,50 @@ def fetch_pokemon_data():
     # Create directory for pokemon data if it doesn't exist
     os.makedirs('pokemon_data', exist_ok=True)
     
+    # Initialize log file
+    with open('pokemon_fetch.log', 'a') as log_file:
+        log_file.write(f"\nPokémon Fetch Log - {datetime.now()}\n")
+        log_file.write("-----------------------------\n")
+    
     for pokemon in pokemon_list:
         print(f"Fetching data for {pokemon}...")
+        max_retries = 3
+        retry_delay = 2  # seconds
+        success = False
         
-        try:
-            # Use curl to fetch the data
-            curl_command = [
-                "curl",
-                "-s",  # Silent mode
-                "-o", f"pokemon_data/{pokemon}.json",  # Output file
-                f"https://pokeapi.co/api/v2/pokemon/{pokemon}"
-            ]
-            
-            # Execute the curl command
-            subprocess.run(curl_command, check=True)
-            
-            print(f"Saved data to pokemon_data/{pokemon}.json ✅")
-            
-        except subprocess.CalledProcessError as e:
-            print(f"Error fetching data for {pokemon}: {e}")
+        for attempt in range(1, max_retries + 1):
+            try:
+                # Use curl to fetch the data with timeout
+                curl_command = [
+                    "curl",
+                    "-s",  # Silent mode
+                    "--connect-timeout", "10",  # Connection timeout
+                    "--max-time", "30",  # Maximum time for the whole operation
+                    "-o", f"pokemon_data/{pokemon}.json",  # Output file
+                    f"https://pokeapi.co/api/v2/pokemon/{pokemon}"
+                ]
+                
+                # Execute the curl command
+                subprocess.run(curl_command, check=True)
+                success = True
+                print(f"Saved data to pokemon_data/{pokemon}.json ✅")
+                break  # Exit retry loop on success
+                
+            except subprocess.CalledProcessError as e:
+                with open('pokemon_fetch.log', 'a') as log_file:
+                    log_file.write(f"Attempt {attempt} failed for {pokemon}: {e}\n")
+                
+                if attempt < max_retries:
+                    print(f"Attempt {attempt} failed. Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    print(f"Failed to fetch {pokemon} after {max_retries} attempts ❌")
+                    with open('pokemon_fetch.log', 'a') as log_file:
+                        log_file.write(f"Failed to fetch {pokemon} after {max_retries} attempts\n")
         
         # Add delay between requests to avoid rate limiting
         time.sleep(1)
 
 if __name__ == "__main__":
     fetch_pokemon_data()
+    print("\nFetch process completed. Check pokemon_fetch.log for any errors.")
