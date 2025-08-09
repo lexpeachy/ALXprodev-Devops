@@ -1,0 +1,50 @@
+import requests
+import time
+import os
+import json
+
+# Configuration
+POKEMON_LIST = ['Bulbasaur', 'Ivysaur', 'Venusaur', 'Charmander', 'Charmeleon']
+BASE_URL = 'https://pokeapi.co/api/v2/pokemon/'
+OUTPUT_DIR = 'pokemon_data'
+DELAY_BETWEEN_REQUESTS = 1  # seconds
+
+def fetch_pokemon_data(pokemon_name):
+    """Fetch data for a single Pokémon from the API."""
+    try:
+        response = requests.get(f"{BASE_URL}{pokemon_name.lower()}")
+        response.raise_for_status()  # Raise an exception for HTTP errors
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching data for {pokemon_name}: {e}")
+        return None
+
+def save_pokemon_data(pokemon_name, data):
+    """Save Pokémon data to a JSON file."""
+    if not os.path.exists(OUTPUT_DIR):
+        os.makedirs(OUTPUT_DIR)
+    
+    filename = f"{OUTPUT_DIR}/{pokemon_name.lower()}.json"
+    try:
+        with open(filename, 'w') as f:
+            json.dump(data, f, indent=2)
+        print(f"Saved data to {filename} ✅")
+    except IOError as e:
+        print(f"Error saving data for {pokemon_name}: {e}")
+
+def main():
+    print("Starting Pokémon data fetch...")
+    
+    for pokemon in POKEMON_LIST:
+        print(f"Fetching data for {pokemon.lower()}...")
+        data = fetch_pokemon_data(pokemon)
+        
+        if data:
+            save_pokemon_data(pokemon, data)
+        
+        # Add delay to avoid rate limiting
+        if pokemon != POKEMON_LIST[-1]:  # No delay after the last request
+            time.sleep(DELAY_BETWEEN_REQUESTS)
+
+if __name__ == "__main__":
+    main()
