@@ -1,53 +1,71 @@
-#!/usr/bin/env python3
+#!/bin/bash
 
-import os
-import subprocess
-import concurrent.futures
+# Pokémon list to fetch
+pokemons=("Bulbasaur" "Ivysaur" "Venusaur" "Charmander" "Charmeleon")
+base_url="https://pokeapi.co/api/v2/pokemon"
+processes=()
+output_dir="pokemon_data"
 
-POKEMON_LIST = ["bulbasaur", "ivysaur", "venusaur", "charmander", "charmeleon"]
-MAX_WORKERS = 3  # Optimal number of parallel requests
+# Create output directory
+mkdir -p "$output_dir"
 
-def fetch_pokemon(pokemon):
-    """Fetch data for a single Pokémon"""
-    try:
-        subprocess.run(
-            [
-                "curl",
-                "-s",
-                "--connect-timeout", "10",
-                "--max-time", "30",
-                "-o", f"pokemon_data/{pokemon}.json",
-                f"https://pokeapi.co/api/v2/pokemon/{pokemon}"
-            ],
-            check=True
-        )
-        return (pokemon, True)
-    except subprocess.CalledProcessError:
-        return (pokemon, False)
-
-def main():
-    os.makedirs("pokemon_data", exist_ok=True)
+# Function to fetch Pokémon data
+fetch_pokemon() {
+    local pokemon=$1
+    local url="$base_url/$pokemon"
+    local output_file="$output_dir/${pokemon}.json"
     
-    print("Starting parallel Pokémon data fetch...")
-    
-    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        # Submit all fetch operations
-        future_to_pokemon = {
-            executor.submit(fetch_pokemon, pokemon): pokemon
-            for pokemon in POKEMON_LIST
-        }
-        
-        # Process results as they complete
-        success_count = 0
-        for future in concurrent.futures.as_completed(future_to_pokemon):
-            pokemon, success = future.result()
-            if success:
-                print(f"✅ Successfully fetched {pokemon}")
-                success_count += 1
-            else:
-                print(f"❌ Failed to fetch {pokemon}")
-    
-    print(f"\nFetch complete. Success: {success_count}/{len(POKEMON_LIST)}")
+    echo "[$(date '+%T')] Starting fetch for $pokemon (PID: $$)"
+    if curl -s "$url" -o "$output_file"; then
+        echo "[$(date '+%T')] Successfully fetched $pokemon"
+    else
+        echo "[$(date '+%T')] Failed to fetch $pokemon" >&2
+        return 1
+    fi
+}
 
-if __name__ == "__main__":
-    main()
+# Function to show current jobs
+job() {
+    echo -e "\nCurrent background jobs:"
+    jobs -l
+}
+
+# Function to clean up background processes
+kill_all() {
+    echo -e "\nKilling all background processes..."
+    for pid in "${processes[@]}"; do
+        if kill -0 "$pid" 2>/dev/null; then
+            kill "$pid"
+            echo "Killed process $pid"
+        fi
+    done
+    processes=()
+}
+
+# Trap signals for proper cleanup
+trap 'kill_all; exit' INT TERM EXIT
+
+# Start fetching in parallel
+echo "Starting Pokémon data fetch..."
+for pokemon in "${pokemons[@]}"; do
+    fetch_pokemon "$pokemon" &
+    processes+=($!)
+    echo "Started $pokemon (PID: $!)"
+done
+
+# Wait for all processes to complete
+echo -e "\nWaiting for all processes to complete..."
+for pid in "${processes[@]}"; do
+    if wait "$pid"; then
+        echo "Process $pid completed successfully"
+    else
+        echo "Process $pid failed" >&2
+    fi
+done
+
+# All done
+echo -e "\nAll Pokémon data fetched!"
+echo "Results saved in $output_dir/"
+
+# Reset trap
+trap - INT TERM EXIT
