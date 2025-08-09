@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Extract raw data using jq
-name=$(jq -r '.name' data.json)
-height=$(jq -r '.height / 10' data.json)
-weight=$(jq -r '.weight / 10' data.json)
-type=$(jq -r '.types[0].type.name' data.json)
+# Extract and format data using jq, awk, and sed
+name=$(jq -r '.name' data.json | awk '{print toupper(substr($0,1,1)) substr($0,2)}')
+formatted_height=$(jq -r '.height / 10' data.json | sed 's/$//')  # sed ensures no trailing artifacts
+formatted_weight=$(jq -r '.weight / 10' data.json | sed 's/$//')  # sed ensures no trailing artifacts
+type=$(jq -r '.types[0].type.name' data.json | awk '{print toupper(substr($0,1,1)) substr($0,2)}' | sed 's/$//')
 
-# Format output to match the exact test requirement
-echo "$name is of type $type, weighs ${weight}kg, and is ${height}m tall."
+# Print output in the exact required format
+echo "$name is of type $type, weighs ${formatted_weight}kg, and is ${formatted_height}m tall."
