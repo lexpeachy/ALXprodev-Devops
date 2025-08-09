@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Extract data using jq and format with sed/awk
-name=$(jq -r '.name' data.json | awk '{print toupper(substr($0,1,1)) substr($0,2)}')
-height=$(jq -r '.height / 10' data.json) # Convert from decimeters to meters
-weight=$(jq -r '.weight / 10' data.json) # Convert from hectograms to kilograms
-type=$(jq -r '.types[0].type.name' data.json | awk '{print toupper(substr($0,1,1)) substr($0,2)}')
+# Extract raw data using jq
+name=$(jq -r '.name' data.json)
+height=$(jq -r '.height / 10' data.json)
+weight=$(jq -r '.weight / 10' data.json)
+type=$(jq -r '.types[0].type.name' data.json)
 
-# Format and print the output
-echo "${name} is of type ${type}, weighs ${weight}kg, and is ${height}m tall."
+# Format output to match the exact test requirement
+echo "$name is of type $type, weighs ${weight}kg, and is ${height}m tall."
