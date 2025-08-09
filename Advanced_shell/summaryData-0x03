@@ -20,18 +20,15 @@ done
 # Sort the CSV file alphabetically by Pokémon name (excluding header)
 (head -n 1 "$CSV_FILE" && tail -n +2 "$CSV_FILE" | sort) > temp.csv && mv temp.csv "$CSV_FILE"
 
-# Calculate averages using awk
-averages=$(awk -F',' 'NR>1 {height_sum+=$2; weight_sum+=$3; count++} 
-            END {printf "%.2f,%.2f", height_sum/count, weight_sum/count}' "$CSV_FILE")
-
-# Split averages into height and weight
-avg_height=$(echo "$averages" | cut -d',' -f1)
-avg_weight=$(echo "$averages" | cut -d',' -f2)
+# Calculate averages using awk and sed
+# First extract the data columns, then calculate averages
+height_avg=$(tail -n +2 "$CSV_FILE" | cut -d',' -f2 | sed 's/^/+/' | tr '\n' ' ' | sed 's/ / +/g' | sed 's/+$//' | awk '{print "scale=2; (" $0 ")/" NR-1}' | bc)
+weight_avg=$(tail -n +2 "$CSV_FILE" | cut -d',' -f3 | sed 's/^/+/' | tr '\n' ' ' | sed 's/ / +/g' | sed 's/+$//' | awk '{print "scale=2; (" $0 ")/" NR-1}' | bc)
 
 # Print report
 echo "CSV Report generated at: $CSV_FILE"
 echo ""
 cat "$CSV_FILE"
 echo ""
-echo "Average Height: $avg_height m"
-echo "Average Weight: $avg_weight kg"
+echo "Average Height: $height_avg m"
+echo "Average Weight: $weight_avg kg"
