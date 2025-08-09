@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+
+import os
+import time
+import subprocess
+from multiprocessing import Pool
+
+def fetch_pokemon(pokemon):
+    """Fetch data for a single Pokémon"""
+    try:
+        # Use curl with timeout and proper error handling
+        curl_command = [
+            "curl",
+            "-s",  # Silent mode
+            "--connect-timeout", "10",
+            "--max-time", "30",
+            "-o", f"pokemon_data/{pokemon}.json",
+            f"https://pokeapi.co/api/v2/pokemon/{pokemon}"
+        ]
+        
+        result = subprocess.run(curl_command, check=True)
+        return (pokemon, True, None)
+    except subprocess.CalledProcessError as e:
+        return (pokemon, False, str(e))
+
+def fetch_pokemon_data():
+    # List of Pokémon in lowercase
+    pokemon_list = ["bulbasaur", "ivysaur", "venusaur", "charmander", "charmeleon"]
+    
+    # Create directory for pokemon data if it doesn't exist
+    os.makedirs('pokemon_data', exist_ok=True)
+    
+    print("Starting parallel fetch...")
+    start_time = time.time()
+    
+    # Create a process pool with 3 workers (adjust based on your system)
+    with Pool(processes=3) as pool:
+        results = pool.map(fetch_pokemon, pokemon_list)
+    
+    # Process results
+    success_count = 0
+    for pokemon, success, error in results:
+        if success:
+            print(f"Saved data to pokemon_data/{pokemon}.json ✅")
+            success_count += 1
+        else:
+            print(f"Failed to fetch {pokemon}: {error} ❌")
+    
+    total_time = time.time() - start_time
+    print(f"\nFetch complete. {success_count}/{len(pokemon_list)} succeeded")
+    print(f"Total time: {total_time:.2f} seconds")
+
+if __name__ == "__main__":
+    fetch_pokemon_data()
